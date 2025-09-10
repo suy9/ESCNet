@@ -1,0 +1,51 @@
+# config.yaml
+
+# Training Parameters
+batch_size: 16
+batch_size_valid: 64
+epochs: 120
+lr: 0.000075
+weight_decay: 0.00015
+rand_seed: 42
+precisionHigh: true
+
+# Dataset Configuration
+train_dir: /data/studnet/ys/datasets/COD/Train
+test_dir: /data/studnet/ys/datasets/COD/Test/COD10K
+load_all: false
+
+# Model Configuration
+backbone: pvt_v2_b5
+img_size: 416
+lateral_channels: [512, 320, 128, 64]
+resume: ""
+compile: false
+
+# Multi-GPU Settings
+device_ids: [0, 1, 2, 3]
+multi_GPU: true
+
+# Save Settings
+save_model_dir: checkpoints
+name: escnet
+save_last: 30
+save_step: 3
+
+# Data Augmentation
+preproc_methods:
+  - flip
+  - rotate
+  - pepper
+  - crop
+
+# Path Settings (inactive)
+weights:
+  # pvt_v2_b0: /data/studnet/ys/weights/pvt_v2_b0.pth
+  # pvt_v2_b1: /data/studnet/ys/weights/pvt_v2_b1.pth
+  pvt_v2_b2: /data/studnet/ys/weights/pvt_v2_b2.pth
+  # pvt_v2_b3: /data/studnet/ys/weights/pvt_v2_b3.pth
+  pvt_v2_b4: /data/studnet/ys/weights/pvt_v2_b4.pth
+  pvt_v2_b5: /data/studnet/ys/weights/pvt_v2_b5_22k.pth
+
+# System
+num_workers: 16
