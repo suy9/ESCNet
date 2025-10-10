@@ -5,7 +5,7 @@ This repository is the official implementation of ESCNet:Edge-Semantic Collabora
 
 
 ## Requirements
-- python == 3.10
+- python == 3.11
 - cuda >= 12.4
 
 To install requirements:
