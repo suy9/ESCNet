@@ -145,12 +145,12 @@ def evaluate_models_parallel(args, config):
     all_rows.sort(key=lambda row: row[0])
 
     tb.add_rows(all_rows)
-
-    results_file = os.path.join(args.save_dir, "abs.txt")
+    print(tb)
+    results_file = os.path.join(args.save_dir, "result.txt")
     with lock:
         with open(results_file, "a+") as file:
             file.write(str(tb) + "\n")
-    print(tb)
+    
 
 
 if __name__ == "__main__":

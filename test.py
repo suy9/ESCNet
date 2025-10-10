@@ -25,13 +25,6 @@ def inference(model, data_loader_test, pred_root, method, device):
         os.makedirs(os.path.join(pred_root, method), exist_ok=True)
         with torch.no_grad():
             out_edge, scaled_preds = model(inputs)
-            # print(len(scaled_preds))
-            # print(scaled_preds[-1].shape)
-            # pdb.set_trace()
-            # scaled_preds = scaled_preds.sigmoid()
-            # scaled_preds = (scaled_preds >= 0.5).float()
-        # for _idx, pred_lvl in enumerate(scaled_preds[-1]):
-
         pred_lvl = (scaled_preds[-1].sigmoid() >= 0.5).float()
 
         for idx_sample in range(pred_lvl.shape[0]):
@@ -49,23 +42,7 @@ def inference(model, data_loader_test, pred_root, method, device):
                     os.path.join(pred_root, method),
                     label_paths[idx_sample].replace("\\", "/").split("/")[-1],
                 ),
-            )  # test set dir + file name
-
-            # res_edge = torch.nn.functional.interpolate(
-            #     out_edge[idx_sample].unsqueeze(0),
-            #     size=cv2.imread(label_paths[idx_sample], cv2.IMREAD_GRAYSCALE).shape[
-            #         :2
-            #     ],
-            #     mode="bilinear",
-            #     align_corners=True,
-            # )
-            # save_tensor_img(
-            #     res_edge,
-            #     os.path.join(
-            #         os.path.join(pred_root, method, "edge"),
-            #         label_paths[idx_sample].replace("\\", "/").split("/")[-1],
-            #     ),
-            # )
+            ) 
     return None
 
 
@@ -75,9 +52,8 @@ def load_and_infer_on_gpu(model, weights, data_loader_test, pred_root, testset, 
     state_dict = check_state_dict(state_dict)
     model.load_state_dict(
         state_dict
-    )  # Directly load state_dict since it's not DataParallel here
-
-    # Inference
+    )  
+    
     inference(
         model,
         data_loader_test=data_loader_test,
@@ -86,7 +62,6 @@ def load_and_infer_on_gpu(model, weights, data_loader_test, pred_root, testset, 
         device=device,
     )
 
-    # Release memory
     del state_dict
     torch.cuda.empty_cache()
 
@@ -173,12 +148,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ESCNet Test Script")
     parser.add_argument(
         "--config", type=str, default="config.yaml", help="Path to the config file."
-    )
-    parser.add_argument(
-        "--ckpt",
-        default=None,
-        type=str,
-        help="single model file path",
     )
     parser.add_argument("--pred_root", default="preds", type=str, help="Output folder")
     args = parser.parse_args()

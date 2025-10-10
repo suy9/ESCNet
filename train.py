@@ -40,7 +40,6 @@ class Trainer:
         
         os.makedirs(os.path.join(self.config.save_model_dir, self.config.name), exist_ok=True)
 
-        # 仅在主进程中创建logger
         self.logger = (
             Logger(config, os.path.join(self.config.save_model_dir, self.config.name, "log.txt"))
             if self.rank == 0
@@ -50,7 +49,6 @@ class Trainer:
         self.log(f"Trainer initialized on rank {self.rank} with device {self.device}.")
         self.log(f"Full config:\n{self.config.model_dump_json(indent=2)}")
 
-        # 内部完成数据、模型、优化器的设置
         self.train_loader = self._prepare_dataloader()
         self.model, self.optimizer, self.lr_scheduler = (
             self._prepare_model_and_optimizer()
@@ -147,7 +145,7 @@ class Trainer:
 
                 loss_structure = 0.0
                 gts = torch.clamp(gts, 0, 1)
-                factors = [1.0, 1.0, 1.0, 1.0]
+                factors = [0.5, 0.7, 0.9, 1.1]
 
                 for i, pred_lvl in enumerate(out_pred_masks):
                     pred_lvl_resized = nn.functional.interpolate(
@@ -169,7 +167,6 @@ class Trainer:
 
             self.loss_log.update(total_loss.item(), inputs.size(0))
 
-            # 日志记录 (仅在主进程)
             if self.rank == 0 and batch_idx % 50 == 0:
                 log_msg = (
                     f"Epoch[{epoch}/{self.config.epochs}] Iter[{batch_idx}/{len(self.train_loader)}] | "

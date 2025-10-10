@@ -16,8 +16,8 @@ fi
 
 # 测试部分
 echo "执行测试脚本..."
-python test.py
+python test.py --config config.yaml --pred_root preds
 
 # 评估部分
 echo "执行评估脚本..."
-python eval.py
+python eval.py --pred_root preds ----save_dir results
