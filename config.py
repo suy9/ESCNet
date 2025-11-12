@@ -26,7 +26,6 @@ class Config(BaseModel):
     precisionHigh: bool = True
 
     # --- Dataset Configuration ---
-    test_set: str
     train_dir: DirectoryPath   # Validates that the train directory exists
     test_dir: DirectoryPath    # Validates that the test directory exists
     load_all: bool = False

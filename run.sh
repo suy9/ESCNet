@@ -20,4 +20,4 @@ python test.py --config config.yaml --pred_root preds
 
 # 评估部分
 echo "执行评估脚本..."
-python eval.py --pred_root preds ----save_dir results
+python eval.py --pred_root preds --save_dir results

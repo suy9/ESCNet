@@ -19,6 +19,10 @@ pip install -r requirements.txt
 ## Dataset
 [COD (Camouflaged Object Detection) Dataset](https://github.com/lartpang/awesome-segmentation-saliency-dataset#camouflaged-object-detection-cod)
 
+## Inference result
+For quick evaluation, you can download our test data:
+- [Google Drive](https://drive.google.com/file/d/1QrQ4hGuqmHpHqabPpYvB1FbN7jci1phg/view?usp=drive_link)
+
 ## Training
 
 To train the model(s) in the paper, run this command:
@@ -33,7 +37,7 @@ To test models, change config.yaml for different datasets:
 # inference preds on different model
 python test.py --config config.yaml --pred_root preds
 # Then calculate metrics
-python eval.py --pred_root preds ----save_dir results
+python eval.py --pred_root preds --save_dir results
 ```
 
 For ease of use, we create a [eval.sh](scripts%2Feval.sh) script and a use case in the form of a shell script eval.sh.

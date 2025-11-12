@@ -149,6 +149,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config", type=str, default="config.yaml", help="Path to the config file."
     )
+    parser.add_argument("--ckpt", type=str, default=None, help="Path to a specific checkpoint.")
     parser.add_argument("--pred_root", default="preds", type=str, help="Output folder")
     args = parser.parse_args()
     main(args)
