@@ -21,7 +21,7 @@ pip install -r requirements.txt
 
 ## Inference result
 For quick evaluation, you can download our test data:
-- [Google Drive](https://drive.google.com/file/d/1QrQ4hGuqmHpHqabPpYvB1FbN7jci1phg/view?usp=drive_link)
+- [Google Drive](https://drive.google.com/uc?id=1QrQ4hGuqmHpHqabPpYvB1FbN7jci1phg&export=download)
 
 ## Training
 
