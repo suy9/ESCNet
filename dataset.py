@@ -71,7 +71,7 @@ class MyData(data.Dataset):
             for p in self.image_paths:
                 base, ext = os.path.splitext(p)  # 分离文件名和扩展名
                 p_gt = os.path.join(
-                    os.path.dirname(p).replace("Image", "GT_Edgess"),
+                    os.path.dirname(p).replace("Image", "GT_Edge"),
                     os.path.basename(base) + ".png",
                 )
                 if os.path.exists(p_gt):
