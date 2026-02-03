@@ -6,9 +6,9 @@ This repository is the official implementation of ESCNet:Edge-Semantic Collabora
 ## Visual Comparison
 <div align="center">
   <!-- SAVE FIGURE 1 or 6 FROM THE PDF AS assets/visuals.png -->
-  <img src="assets/visuals.png" width="90%">
+  <img src="visual.png" width="90%">
   <br>
-  <em>Figure 2: Visual comparison between ESCNet and other SOTA methods. Our model accurately segments objects with complex backgrounds and intricate boundaries.</em>
+  <em>Visual comparison between ESCNet and other SOTA methods. Our model accurately segments objects with complex backgrounds and intricate boundaries.</em>
 </div>
 
 
