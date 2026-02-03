@@ -2,6 +2,38 @@
 
 This repository is the official implementation of ESCNet:Edge-Semantic Collaborative Network for Camouflaged Object Detection
 
+<div align="center">
+
+<!-- You can update the links once the paper/code is fully public -->
+[![Paper](https://img.shields.io/badge/Paper-ICCV_2025-blue)](https://ieee-dataport.org/)
+[![Framework](https://img.shields.io/badge/PyTorch-2.6.0+-EE4C2C?logo=pytorch)](https://pytorch.org/)
+
+**Sheng Ye, Xin Chen, Yan Zhang, Xianming Lin\*, Liujuan Cao**
+
+*Key Laboratory of Multimedia Trusted Perception and Efficient Computing, Ministry of Education of China, Xiamen University*
+
+</div>
+
+## 📊 Performance
+
+### Quantitative Results
+
+| Methods | **NC4K** ($S_m \uparrow$) | **NC4K** ($M \downarrow$) | **COD10K** ($S_m \uparrow$) | **COD10K** ($M \downarrow$) | **CAMO** ($S_m \uparrow$) | **CAMO** ($M \downarrow$) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| SINet-V2 | 0.847 | 0.048 | 0.815 | 0.037 | 0.820 | 0.070 |
+| FEDER |  0.846 | 0.045 | 0.822 | 0.032 | 0.802 | 0.071 |
+| SegMaR |  0.841 | 0.046 | 0.833 | 0.034 | 0.815 | 0.071 |
+| ZoomNet |  0.853 | 0.043 | 0.838 | 0.029 | 0.820 | 0.066 |
+| **ESCNet (Ours)** | **0.892** | **0.028** | **0.873** | **0.021** | **0.871** | **0.044** |
+
+### Visual Comparison
+
+<div align="center">
+  <!-- SAVE FIGURE 1 or 6 FROM THE PDF AS assets/visuals.png -->
+  <img src="assets/visuals.png" width="90%">
+  <br>
+  <em>Figure 2: Visual comparison between ESCNet and other SOTA methods. Our model accurately segments objects with complex backgrounds and intricate boundaries.</em>
+</div>
 
 
 ## Requirements
