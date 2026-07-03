@@ -126,82 +126,72 @@ class LayerNorm(nn.LayerNorm):
 
 
 class SA(nn.Module):
+    """Lightweight transposed (channel) self-attention, Restormer-style.
+
+    Attention is computed over the channel dimension (d x d matrix), so the cost
+    is linear in the number of spatial tokens. q/k/v share a single 1x1
+    projection followed by a depthwise 3x3, which is far cheaper than three
+    dense conv stacks. An optional ``mask`` gates the keys/values.
+    """
 
     def __init__(
         self,
         channels: int,
         num_heads: int = 8,
-        dropout: float = 0.3,
-        ffn_expansion_factor: int = 4,
+        dropout: float = 0.0,
+        ffn_expansion_factor: int = 2,
     ):
-        super(SA, self).__init__()
+        super().__init__()
         self.num_heads = num_heads
-        head_dim = channels // num_heads
-        self.scale = head_dim**-0.5
+        # Learnable per-head temperature (replaces the fixed 1/sqrt(d) scale).
+        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
 
         self.norm1 = LayerNorm(channels)
         self.norm2 = LayerNorm(channels)
 
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(channels, channels, 1, 1, 0),
-            nn.BatchNorm2d(channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, 3, 1, 1),
+        self.qkv = nn.Conv2d(channels, channels * 3, 1, bias=False)
+        self.qkv_dw = nn.Conv2d(
+            channels * 3, channels * 3, 3, 1, 1, groups=channels * 3, bias=False
         )
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(channels, channels, 1, 1, 0),
-            nn.BatchNorm2d(channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, 3, 1, 1),
-        )
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(channels, channels, 1, 1, 0),
-            nn.BatchNorm2d(channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, 3, 1, 1),
-        )
-        self.attn_dropout = nn.Dropout(dropout)
         self.proj = nn.Conv2d(channels, channels, kernel_size=1)
-        self.proj_dropout = nn.Dropout(dropout)
+        self.attn_dropout = nn.Dropout(dropout)
 
         self.ffn = FeedForward(
             channels, ffn_expansion_factor=ffn_expansion_factor, bias=False
         )
 
+        # LayerScale: learnable per-channel residual weights for stable training.
+        self.gamma_attn = nn.Parameter(torch.ones(channels, 1, 1))
+        self.gamma_ffn = nn.Parameter(torch.ones(channels, 1, 1))
+
     def forward(self, x, mask=None):
         b, c, h, w = x.shape
-        x_norm1 = self.norm1(x)
+
+        q, k, v = self.qkv_dw(self.qkv(self.norm1(x))).chunk(3, dim=1)
         if mask is not None:
             mask = F.interpolate(
                 mask, size=(h, w), mode="bilinear", align_corners=False
             )
-        q = self.conv1(x_norm1)
-        k = self.conv2(x_norm1)
-        v = self.conv3(x_norm1)
-        k = k * mask if mask is not None else k
-        v = v * mask if mask is not None else v
+            k = k * mask
+            v = v * mask
+
         q = rearrange(q, "b (head d) h w -> b head d (h w)", head=self.num_heads)
         k = rearrange(k, "b (head d) h w -> b head d (h w)", head=self.num_heads)
         v = rearrange(v, "b (head d) h w -> b head d (h w)", head=self.num_heads)
 
-        dots = (q@ k.transpose(-2, -1)) * self.scale
+        q = F.normalize(q, dim=-1)
+        k = F.normalize(k, dim=-1)
 
-        attn = dots.softmax(dim=-1)
-        attn = self.attn_dropout(attn)
+        attn = (q @ k.transpose(-2, -1)) * self.temperature
+        attn = self.attn_dropout(attn.softmax(dim=-1))
 
-        out = torch.matmul(attn, v)
-        out = rearrange(out, "b head d (h w) -> b (head d) h w", head=self.num_heads, h=h, w=w)
+        out = attn @ v
+        out = rearrange(
+            out, "b head d (h w) -> b (head d) h w", head=self.num_heads, h=h, w=w
+        )
 
-        attn_out = self.proj_dropout(self.proj(out))
-
-        x = x + attn_out
-
-        x_norm2 = self.norm2(x)
-
-        ffn_out = self.ffn(x_norm2)
-
-        x = x + ffn_out
-
+        x = x + self.gamma_attn * self.proj(out)
+        x = x + self.gamma_ffn * self.ffn(self.norm2(x))
         return x
 
 

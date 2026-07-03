@@ -1,119 +1,56 @@
-from models.modules.utils import SA, DeformableConv
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
+from models.modules.blocks import DSConv, FeatureReduce, bilinear_resize
+from models.modules.utils import SA
 
 
 class AETP(nn.Module):
-    def __init__(self, in_channel):
-        super(AETP, self).__init__()
-        self.reduce3 = nn.Sequential(
-            nn.Conv2d(in_channel * 2, in_channel, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(in_channel),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channel, in_channel, 3, 1, 1),
-        )
-        self.reduce2 = nn.Sequential(
-            nn.Conv2d(in_channel*2, in_channel, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(in_channel),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channel, in_channel, 3, 1, 1),
-        )
-        self.reduce1 = nn.Sequential(
-            nn.Conv2d(in_channel*2, in_channel, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(in_channel),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(in_channel, in_channel, 3, 1, 1),
-        )
-        self.conv4_1 = DeformableConv(in_channel, in_channel, 3, 1, 1,edge=False)
-        self.conv3_1 = DeformableConv(in_channel, in_channel, 3, 1, 1,edge=False)
-        self.conv2_1 = DeformableConv(in_channel, in_channel, 3, 1, 1,edge=False)
+    """Adaptive Edge-aware Transformer Pyramid — predicts object boundaries."""
 
-        self.sa_f3 = SA(
-            in_channel,
-            ffn_expansion_factor=1
+    def __init__(self, channels: int):
+        super().__init__()
+        self.inject_top = nn.ModuleList(
+            FeatureReduce(channels, channels) for _ in range(3)
         )
-        self.sa_f2 = SA(
-            in_channel,
-            ffn_expansion_factor=1
+        # These paths carry no edge guidance, so cheap DSConv replaces DeformableConv.
+        self.refine = nn.ModuleList(
+            DSConv(channels, channels, kernel_size=3) for _ in range(3)
         )
-        self.sa_s2 = SA(
-            in_channel,
-            ffn_expansion_factor=1
+        self.attn = nn.ModuleList(
+            SA(channels, ffn_expansion_factor=1) for _ in range(3)
         )
-        self.conv_s2 = nn.Conv2d(2 * in_channel, in_channel, 3, 1, 1)
-        # self.edge = SA(
-        #     in_channel,
-        # )
-        # self.edge = DeformableConv(
-        #     in_channel,
-        #     in_channel,
-        #     3,1,1
-        # )
-        self.edge_conv = nn.Conv2d(3 * in_channel, in_channel, 3, 1, 1)
 
-        self.out = nn.Conv2d(in_channel, 1, 1, 1, 0)
+        self.merge_mid = nn.Conv2d(2 * channels, channels, 3, 1, 1)
+        self.edge_fusion = nn.Conv2d(3 * channels, channels, 3, 1, 1)
+        self.out = nn.Conv2d(channels, 1, 1)
 
     def forward(self, features):
-        x, x1, x2, x3, x4 = features  # encoder的输出
+        image, x1, x2, x3, x4 = features
 
-        x3 = torch.cat(
-            (
-                x3,
-                F.interpolate(x4, size=x3.shape[2:], mode="bilinear", align_corners=False),
-            ),
-            dim=1,
-        )
-        x3 = self.reduce3(x3)
-        x2 = torch.cat(
-            (
-                x2,
-                F.interpolate(x4, size=x2.shape[2:], mode="bilinear", align_corners=False),
-            ),
-            dim=1,
-        )
-        x2 = self.reduce2(x2)
-        x1 = torch.cat(
-            (
-                x1,
-                F.interpolate(x4, size=x1.shape[2:], mode="bilinear", align_corners=False),
-            ),
-            dim=1,
-        )
-        x1 = self.reduce1(x1)
+        x3 = self.inject_top[0](x3, x4)
+        x2 = self.inject_top[1](x2, x4)
+        x1 = self.inject_top[2](x1, x4)
 
-        x4 = F.interpolate(x4, size=x3.size()[-2:], mode="bilinear", align_corners=False)
-        x4 = self.conv4_1(x4)
-        f3 = x3 + x4
+        x4 = self.refine[0](bilinear_resize(x4, x3.shape[2:]))
+        fused_l3 = x3 + x4
 
-        x3 = F.interpolate(x3, size=x2.size()[-2:], mode="bilinear", align_corners=False)
-        x3 = self.conv3_1(x3)
-        f2 = x2 + x3
+        x3 = self.refine[1](bilinear_resize(x3, x2.shape[2:]))
+        fused_l2 = x2 + x3
+        fused_l3 = bilinear_resize(fused_l3, x2.shape[2:])
 
-        f3 = F.interpolate(f3, size=x2.size()[-2:], mode="bilinear", align_corners=False)
+        x2 = self.refine[2](bilinear_resize(x2, x1.shape[2:]))
+        fused_l1 = x1 + x2
 
-        x2 = F.interpolate(x2, size=x1.size()[-2:], mode="bilinear", align_corners=False)
-        x2 = self.conv2_1(x2)
-        f1 = x1 + x2
+        fused_l3 = self.attn[0](fused_l3)
+        side_l2 = torch.cat((fused_l2, fused_l3), dim=1)
 
-        f3 = self.sa_f3(f3)
+        fused_l2 = self.attn[1](bilinear_resize(fused_l2, x1.shape[2:]))
+        side_l1 = torch.cat((fused_l1, fused_l2), dim=1)
 
-        s2 = torch.cat((f2, f3), dim=1)
+        side_l2 = bilinear_resize(side_l2, x1.shape[2:])
+        side_l2 = self.attn[2](self.merge_mid(side_l2))
 
-        f2 = F.interpolate(f2, size=x1.size()[-2:], mode="bilinear", align_corners=False)
-        f2 = self.sa_f2(f2)
-
-        s1 = torch.cat((f1, f2), dim=1)
-
-        s2 = F.interpolate(s2, size=x1.size()[-2:], mode="bilinear", align_corners=False)
-
-        s2 = self.conv_s2(s2)
-        s2 = self.sa_s2(s2)
-        
-        edge = torch.cat((s2, s1), dim=1)
-        edge = self.edge_conv(edge)
-
-        edge = F.interpolate(edge, size=x.size()[-2:], mode="bilinear", align_corners=False)
-        out = self.out(edge)
-        return out 
+        edge_feat = self.edge_fusion(torch.cat((side_l2, side_l1), dim=1))
+        edge_feat = bilinear_resize(edge_feat, image.shape[2:])
+        return self.out(edge_feat)

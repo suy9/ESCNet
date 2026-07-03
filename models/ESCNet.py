@@ -1,52 +1,37 @@
-from models.modules.Decoder import Decoder
-from models.modules.AETP import AETP
-from models.modules.Encoder import Encoder
 import torch.nn as nn
 
+from models.modules.AETP import AETP
+from models.modules.Decoder import Decoder
+from models.modules.Encoder import Encoder
+from models.modules.blocks import ChannelAlign
 
-# @torch.compile()
+INTER_CHANNELS = 128
+
+
 class ESCNet(nn.Module):
+    """Edge-Semantic Collaborative Network for camouflaged object detection."""
+
     def __init__(self, config, pretrained=True):
-        super(ESCNet, self).__init__()
-        self.channels = config.lateral_channels
-        inter_channel = 128
-
+        super().__init__()
         self.encoder = Encoder(config, pretrained)
-        self.decoder = Decoder(config,inter_channel)
-        self.enhanced = AETP(inter_channel)
+        self.edge_branch = AETP(INTER_CHANNELS)
+        self.mask_decoder = Decoder(config, INTER_CHANNELS)
 
-        self.asa4 = nn.Sequential(
-            nn.Conv2d(self.channels[0], inter_channel, 1, 1, 0),
-            nn.BatchNorm2d(inter_channel),
-            nn.ReLU(inplace=True),
-        )
-        self.asa3 = nn.Sequential(
-            nn.Conv2d(self.channels[1], inter_channel, 1, 1, 0),
-            nn.BatchNorm2d(inter_channel),
-            nn.ReLU(inplace=True),
-        )
-        self.asa2 = nn.Sequential(
-            nn.Conv2d(self.channels[2], inter_channel, 1, 1, 0),
-            nn.BatchNorm2d(inter_channel),
-            nn.ReLU(inplace=True),
-        )
-        self.asa1 = nn.Sequential(
-            nn.Conv2d(self.channels[3], inter_channel, 1, 1, 0),
-            nn.BatchNorm2d(inter_channel),
-            nn.ReLU(inplace=True),
+        # Deepest -> shallowest backbone levels.
+        self.channel_align = nn.ModuleList(
+            ChannelAlign(ch, INTER_CHANNELS) for ch in config.lateral_channels
         )
 
     def forward(self, x):
-        ########## Encoder ##########
-        (x1, x2, x3, x4) = self.encoder(x)  # x1,x2,x3,x1+x2+x3+x4
-        x4 = self.asa4(x4)
-        x3 = self.asa3(x3)
-        x2 = self.asa2(x2)
-        x1 = self.asa1(x1)
+        x1, x2, x3, x4 = self.encoder(x)
+
+        # lateral_channels is ordered deep -> shallow (x4, x3, x2, x1).
+        x4 = self.channel_align[0](x4)
+        x3 = self.channel_align[1](x3)
+        x2 = self.channel_align[2](x2)
+        x1 = self.channel_align[3](x1)
+
         features = [x, x1, x2, x3, x4]
-
-        ########## Decoder ##########
-        out_edge = self.enhanced(features)  # logits
-
-        out_mask = self.decoder(features, out_edge.sigmoid())
-        return out_edge, out_mask
+        edge_logits = self.edge_branch(features)
+        mask_preds = self.mask_decoder(features, edge_logits.sigmoid())
+        return edge_logits, mask_preds

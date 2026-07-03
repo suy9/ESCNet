@@ -10,12 +10,12 @@ rand_seed: 42
 precisionHigh: true
 
 # Dataset Configuration
-train_dir: /data/studnet/ys/datasets/COD/Train
-test_dir: /data/studnet/ys/datasets/COD/Test/COD10K
+train_dir: /path/to/datasets/COD/Train
+test_dir: /path/to/datasets/COD/Test/NC4K
 load_all: false
 
 # Model Configuration
-backbone: pvt_v2_b5
+backbone: pvt_v2_b4
 img_size: 416
 lateral_channels: [512, 320, 128, 64]
 resume: ""
@@ -40,12 +40,9 @@ preproc_methods:
 
 # Path Settings (inactive)
 weights:
-  # pvt_v2_b0: /data/studnet/ys/weights/pvt_v2_b0.pth
-  # pvt_v2_b1: /data/studnet/ys/weights/pvt_v2_b1.pth
-  pvt_v2_b2: /data/studnet/ys/weights/pvt_v2_b2.pth
-  # pvt_v2_b3: /data/studnet/ys/weights/pvt_v2_b3.pth
-  pvt_v2_b4: /data/studnet/ys/weights/pvt_v2_b4.pth
-  pvt_v2_b5: /data/studnet/ys/weights/pvt_v2_b5_22k.pth
+  pvt_v2_b2: /path/to/weights/pvt_v2_b2.pth
+  pvt_v2_b4: /path/to/weights/pvt_v2_b4.pth
+  pvt_v2_b5: /path/to/weights/pvt_v2_b5_22k.pth
 
 # System
 num_workers: 16
